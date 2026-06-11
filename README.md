@@ -1,36 +1,63 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# EURAS Product Search
 
-## Getting Started
+A small Next.js, TypeScript, and Tailwind CSS application for searching products from a EURAS data source.
 
-First, run the development server:
+## Features
+
+- Fetches product data from EURAS
+- Responsive product cards with image, name, code, and price
+- API-based search with pagination
+- Product detail pages
+- Loading, empty, and error states
+
+## Requirements
+
+- Node.js 22.13.0 or newer is recommended for the current Next.js toolchain
+- npm
+
+## Setup
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Create `.env.local`:
+
+```bash
+cp .env.example .env.local
+```
+
+The provided EURAS URL is documentation. The app follows it and uses the documented `eed.php` JSON endpoint. Use your EURAS EED ID locally or in your deployment environment.
+
+Run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## API
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The UI calls local Next.js API routes:
 
-## Learn More
+```bash
+/api/products?q=HDMI&page=1&perPage=10
+/api/products/[id]
+```
 
-To learn more about Next.js, take a look at the following resources:
+Those routes call EURAS server-side and return normalized product data to the UI.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Scripts
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run dev
+npm run lint
+npm run build
+```
 
-## Deploy on Vercel
+## Deploying to Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Import this repository into Vercel, then add the same environment variables in the Vercel project settings before deploying.
