@@ -1,18 +1,18 @@
 # EURAS Product Search
 
-A small Next.js, TypeScript, and Tailwind CSS application for searching products from a EURAS data source.
+A small Next.js, TypeScript, and Tailwind CSS application for searching products from the EURAS EED API.
 
 ## Features
 
-- Fetches product data from EURAS
+- Real-time search with debounce
 - Responsive product cards with image, name, code, and price
-- API-based search with lazy loading
-- Product detail pages
+- Lazy loading — more results load as you scroll
+- Product detail modal
 - Loading, empty, and error states
 
 ## Requirements
 
-- Node.js 22.13.0 or newer is recommended for the current Next.js toolchain
+- Node.js 22.13.0 or newer
 - npm
 
 ## Setup
@@ -29,7 +29,7 @@ Create `.env.local`:
 cp .env.example .env.local
 ```
 
-The provided EURAS URL is documentation. The app follows it and uses the documented `eed.php` JSON endpoint. Use your EURAS EED ID locally or in your deployment environment.
+Fill in your EURAS EED credentials in `.env.local`.
 
 Run the development server:
 
@@ -41,23 +41,20 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## API
 
-The UI calls local Next.js API routes:
+The UI calls a single local Next.js API route which fetches from EURAS server-side and returns normalized product data:
 
-```bash
-/api/products?q=HDMI&page=1&perPage=10
-/api/products/[id]
 ```
-
-Those routes call EURAS server-side and return normalized product data to the UI. Additional result pages load as the user scrolls.
+GET /api/products?q=HDMI&page=1&perPage=10
+```
 
 ## Scripts
 
 ```bash
-npm run dev
-npm run lint
-npm run build
+npm run dev    # start development server
+npm run build  # production build
+npm run lint   # lint
 ```
 
 ## Deploying to Vercel
 
-Import this repository into Vercel, then add the same environment variables in the Vercel project settings before deploying.
+Import this repository into Vercel, then add the same environment variables from `.env.example` in the Vercel project settings before deploying.

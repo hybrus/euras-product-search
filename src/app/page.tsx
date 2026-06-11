@@ -1,4 +1,7 @@
+import { Suspense } from "react";
 import { ProductSearchApp } from "@/components/ProductSearchApp";
+
+export const dynamic = "force-static";
 
 export default function Home() {
   return (
@@ -13,7 +16,9 @@ export default function Home() {
           </p>
         </header>
 
-        <ProductSearchApp />
+        <Suspense>
+          <ProductSearchApp />
+        </Suspense>
       </div>
     </main>
   );
