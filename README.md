@@ -6,7 +6,7 @@ A small Next.js, TypeScript, and Tailwind CSS application for searching products
 
 - Fetches product data from EURAS
 - Responsive product cards with image, name, code, and price
-- API-based search with pagination
+- API-based search with lazy loading
 - Product detail pages
 - Loading, empty, and error states
 
@@ -48,7 +48,7 @@ The UI calls local Next.js API routes:
 /api/products/[id]
 ```
 
-Those routes call EURAS server-side and return normalized product data to the UI.
+Those routes call EURAS server-side and return normalized product data to the UI. Additional result pages load as the user scrolls.
 
 ## Scripts
 

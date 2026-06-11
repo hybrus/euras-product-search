@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ProductGrid } from "@/components/ProductGrid";
 import { SearchBar } from "@/components/SearchBar";
 import { getProductsFromAppApi } from "@/lib/client-products";
@@ -16,7 +16,11 @@ export function ProductSearchApp() {
   const [debouncedQuery, setDebouncedQuery] = useState(DEFAULT_QUERY);
   const [page, setPage] = useState(1);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const requestedPagesRef = useRef(new Set<string>());
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -30,7 +34,20 @@ export function ProductSearchApp() {
     let isMounted = true;
 
     async function loadProducts() {
-      setIsLoading(true);
+      const requestKey = `${debouncedQuery}:${page}`;
+
+      if (requestedPagesRef.current.has(requestKey)) {
+        return;
+      }
+
+      requestedPagesRef.current.add(requestKey);
+
+      if (page === 1) {
+        setIsInitialLoading(true);
+      } else {
+        setIsLoadingMore(true);
+      }
+
       const result = await getProductsFromAppApi({
         query: debouncedQuery,
         page,
@@ -42,15 +59,24 @@ export function ProductSearchApp() {
       }
 
       if (result.error !== null) {
-        setProducts([]);
+        if (page === 1) {
+          setProducts([]);
+          setPagination(null);
+        }
+
         setError(result.error);
-        setPagination(null);
       } else {
-        setProducts(result.products);
+        setProducts((currentProducts) =>
+          page === 1
+            ? uniqueProducts(result.products)
+            : mergeProducts(currentProducts, result.products),
+        );
         setError(null);
         setPagination(result.pagination);
       }
-      setIsLoading(false);
+
+      setIsInitialLoading(false);
+      setIsLoadingMore(false);
     }
 
     loadProducts();
@@ -60,18 +86,58 @@ export function ProductSearchApp() {
     };
   }, [debouncedQuery, page]);
 
+  useEffect(() => {
+    function handleScroll() {
+      setShowBackToTop(window.scrollY > 600);
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  useEffect(() => {
+    const node = loadMoreRef.current;
+
+    if (!node || isInitialLoading || isLoadingMore || error || !pagination) {
+      return;
+    }
+
+    if (pagination.page >= pagination.totalPages) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setPage((currentPage) => currentPage + 1);
+        }
+      },
+      { rootMargin: "400px" },
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [error, isInitialLoading, isLoadingMore, pagination]);
+
   function handleQueryChange(value: string) {
+    requestedPagesRef.current.clear();
     setQuery(value);
     setPage(1);
+    setProducts([]);
+    setPagination(null);
+    setError(null);
   }
 
   return (
     <section className="space-y-6">
       <SearchBar value={query} onChange={handleQueryChange} />
 
-      {isLoading ? <ProductGridSkeleton /> : null}
+      {isInitialLoading ? <ProductGridSkeleton count={PER_PAGE} /> : null}
 
-      {!isLoading && error ? (
+      {!isInitialLoading && error && products.length === 0 ? (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-6">
           <h2 className="text-lg font-semibold text-amber-950">
             Products unavailable
@@ -80,7 +146,7 @@ export function ProductSearchApp() {
         </div>
       ) : null}
 
-      {!isLoading && !error && products.length === 0 ? (
+      {!isInitialLoading && !error && products.length === 0 ? (
         <div className="rounded-md border border-dashed border-slate-300 bg-white p-10 text-center">
           <h2 className="text-lg font-semibold text-slate-950">
             No products found
@@ -91,41 +157,46 @@ export function ProductSearchApp() {
         </div>
       ) : null}
 
-      {!isLoading && !error && products.length > 0 ? (
+      {!isInitialLoading && products.length > 0 ? (
         <>
-          <ResultSummary pagination={pagination} query={debouncedQuery} />
-          <ProductGrid products={products} />
-          <PaginationControls
+          <ResultSummary
+            loadedCount={products.length}
             pagination={pagination}
-            onPrevious={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
-            onNext={() => setPage((currentPage) => currentPage + 1)}
+            query={debouncedQuery}
+          />
+          <ProductGrid products={products} />
+          <LoadMoreStatus
+            ref={loadMoreRef}
+            isLoading={isLoadingMore}
+            pagination={pagination}
           />
         </>
       ) : null}
+
+      <BackToTopButton isVisible={showBackToTop} />
     </section>
   );
 }
 
-function ProductGridSkeleton() {
+function ProductGridSkeleton({ count }: { count: number }) {
   return (
-    <div className="space-y-6">
-      <div className="h-12 animate-pulse rounded-md bg-slate-200" />
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-        {Array.from({ length: 8 }, (_, index) => (
-          <div
-            key={index}
-            className="h-80 animate-pulse rounded-md bg-slate-200"
-          />
-        ))}
-      </div>
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      {Array.from({ length: count }, (_, index) => (
+        <div
+          key={index}
+          className="h-80 animate-pulse rounded-md bg-slate-200"
+        />
+      ))}
     </div>
   );
 }
 
 function ResultSummary({
+  loadedCount,
   pagination,
   query,
 }: {
+  loadedCount: number;
   pagination: ProductPagination | null;
   query: string;
 }) {
@@ -135,47 +206,71 @@ function ResultSummary({
 
   return (
     <p className="text-sm text-slate-600">
-      Showing page {pagination.page} of {pagination.totalPages} for{" "}
-      <span className="font-medium text-slate-950">{query}</span> (
-      {pagination.totalResults} results)
+      Showing {loadedCount} of {pagination.totalResults} results for{" "}
+      <span className="font-medium text-slate-950">{query}</span> (page{" "}
+      {pagination.page} of {pagination.totalPages})
     </p>
   );
 }
 
-function PaginationControls({
-  pagination,
-  onPrevious,
-  onNext,
-}: {
-  pagination: ProductPagination | null;
-  onPrevious: () => void;
-  onNext: () => void;
-}) {
-  if (!pagination || pagination.totalPages <= 1) {
+function BackToTopButton({ isVisible }: { isVisible: boolean }) {
+  if (!isVisible) {
     return null;
   }
 
   return (
-    <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-6">
-      <button
-        type="button"
-        onClick={onPrevious}
-        disabled={pagination.page <= 1}
-        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Previous
-      </button>
-      <p className="text-sm text-slate-600">
-        Page {pagination.page} / {pagination.totalPages}
+    <button
+      type="button"
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      className="fixed bottom-5 right-5 z-20 rounded-md bg-emerald-700 px-4 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200"
+    >
+      Back to top
+    </button>
+  );
+}
+
+function LoadMoreStatus({
+  ref,
+  isLoading,
+  pagination,
+}: {
+  ref: React.RefObject<HTMLDivElement | null>;
+  isLoading: boolean;
+  pagination: ProductPagination | null;
+}) {
+  if (!pagination) {
+    return null;
+  }
+
+  const hasMore = pagination.page < pagination.totalPages;
+
+  return (
+    <div ref={ref} className="border-t border-slate-200 pt-6 text-center">
+      {isLoading ? <ProductGridSkeleton count={4} /> : null}
+      <p className="mt-4 text-sm text-slate-600">
+        {hasMore
+          ? isLoading
+            ? "Loading more products..."
+            : "Scroll to load more products"
+          : "All matching products loaded"}
       </p>
-      <button
-        type="button"
-        onClick={onNext}
-        disabled={pagination.page >= pagination.totalPages}
-        className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-emerald-400 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
-      >
-        Next
-      </button>
     </div>
   );
+}
+
+function mergeProducts(currentProducts: Product[], nextProducts: Product[]) {
+  return uniqueProducts([...currentProducts, ...nextProducts]);
+}
+
+function uniqueProducts(products: Product[]) {
+  const seenIds = new Set<string>();
+
+  return products.filter((product) => {
+    if (seenIds.has(product.id)) {
+      return false;
+    }
+
+    seenIds.add(product.id);
+    return true;
+  });
 }
